@@ -19,8 +19,7 @@ const fetchItems = async (tradable: boolean): Promise<Item[]> => {
 };
 
 export const fetchItemsFromSkinport = async (): Promise<Item[]> => {
-  const tradableItems = await fetchItems(true);
-  const nonTradableItems = await fetchItems(false);
+  const [tradableItems, nonTradableItems] = await Promise.all([fetchItems(true), fetchItems(false)]);
 
   const itemsMap = new Map<string, Item>();
 

@@ -5,24 +5,25 @@ export const getUserById = async (userId: number) => {
   return result.rows[0];
 };
 
-export const updateUserBalance = async (userId: number, newBalance: number) => {
-  await query('UPDATE users SET balance = $1 WHERE id = $2', [newBalance, userId]);
-};
-
 export const deductUserBalance = async (userId: number, amount: number) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    const { rows } = await client.query('SELECT balance FROM users WHERE id = $1', [userId]);
-    if (rows.length === 0) throw new Error('User not found');
 
-    const user = rows[0];
-    if (user.balance < amount) throw new Error('Insufficient balance');
+    const queryText = `
+      UPDATE users
+      SET balance = balance - $1
+      WHERE id = $2 AND balance >= $1
+      RETURNING balance;
+    `;
+    
+    const { rows } = await client.query(queryText, [amount, userId]);
+    if (rows.length === 0) {
+      throw new Error('Insufficient balance or user not found');
+    }
 
-    const newBalance = user.balance - amount;
-    await client.query('UPDATE users SET balance = $1 WHERE id = $2', [newBalance, userId]);
     await client.query('COMMIT');
-    return newBalance;
+    return rows[0].balance;
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
